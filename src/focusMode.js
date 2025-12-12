@@ -1,3 +1,4 @@
+import { EditorView } from '@codemirror/view'
 import { showToast } from './utils.js'
 
 // 专注模式配置

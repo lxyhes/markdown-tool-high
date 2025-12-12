@@ -3,7 +3,7 @@ export function updateStatusBar(doc, selection) {
   // 更新字数统计
   const text = doc.toString()
   const wordCount = countWords(text)
-  document.getElementById('wordCount').textContent = `字数: ${wordCount}`
+  document.getElementById('wordCount').textContent = `${wordCount} 字`
 
   // 更新光标位置
   if (selection) {
@@ -11,7 +11,12 @@ export function updateStatusBar(doc, selection) {
     const line = doc.lineAt(cursor)
     const lineNumber = line.number
     const column = cursor - line.from + 1
-    document.getElementById('cursorPosition').textContent = `行 ${lineNumber}, 列 ${column}`
+
+    // Check if element exists before setting (in case ID mismatch remains or element removed)
+    const cursorEl = document.getElementById('cursorInfo') || document.getElementById('cursorPosition')
+    if (cursorEl) {
+      cursorEl.textContent = `Ln ${lineNumber}, Col ${column}`
+    }
   }
 }
 

@@ -1,14 +1,36 @@
 // 显示提示信息
-export function showToast(message, duration = 3000) {
+export function showToast(message, typeOrDuration = 'info', duration = 3000) {
+  let type = 'info'
+  let time = duration
+
+  if (typeof typeOrDuration === 'number') {
+    time = typeOrDuration
+  } else if (typeof typeOrDuration === 'string') {
+    type = typeOrDuration
+    // If 3rd arg wasn't passed but 2nd was string, use default duration (3000)
+  }
+
   const toast = document.createElement('div')
-  toast.className = 'toast'
-  toast.textContent = message
+  toast.className = `toast toast-${type}`
+
+  // Icon based on type
+  let icon = ''
+  if (type === 'error') {
+    icon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#ff6b6b"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`
+  } else if (type === 'success') {
+    icon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#51cf66"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`
+  } else {
+    // Info
+    icon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#339af0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`
+  }
+
+  toast.innerHTML = `${icon}<span>${message}</span>`
   document.body.appendChild(toast)
 
   setTimeout(() => {
-    toast.style.animation = 'slideOut 0.3s ease'
+    toast.style.animation = 'slideOut 0.3s ease forwards'
     setTimeout(() => toast.remove(), 300)
-  }, duration)
+  }, time)
 }
 
 // 格式化文件大小
@@ -61,7 +83,7 @@ export function debounce(func, wait) {
 // 节流函数
 export function throttle(func, limit) {
   let inThrottle
-  return function() {
+  return function () {
     const args = arguments
     const context = this
     if (!inThrottle) {
@@ -138,11 +160,11 @@ const style = document.createElement('style')
 style.textContent = `
   @keyframes slideOut {
     from {
-      transform: translateX(0);
+      transform: translateY(0);
       opacity: 1;
     }
     to {
-      transform: translateX(100%);
+      transform: translateY(20px);
       opacity: 0;
     }
   }

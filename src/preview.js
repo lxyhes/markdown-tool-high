@@ -5,17 +5,16 @@ import toc from 'markdown-it-table-of-contents'
 import katex from 'markdown-it-katex'
 import hljs from 'highlight.js'
 import mermaid from 'mermaid'
+import { convertFileSrc } from '@tauri-apps/api/tauri'
 
-// 初始化 Mermaid
+// 初始化 Mermaid config
 mermaid.initialize({
-  startOnLoad: true,
-  theme: 'dark',
+  startOnLoad: false, // We render manually
+  theme: 'dark', // Should be dynamic based on app theme, but default to dark for now
   securityLevel: 'loose',
-  flowchart: {
-    useMaxWidth: true,
-    htmlLabels: true
-  }
 })
+
+
 
 // 初始化 Markdown 解析器
 const md = new MarkdownIt({
@@ -25,62 +24,93 @@ const md = new MarkdownIt({
   breaks: false,
   highlight: function (str, lang) {
     if (lang && lang.toLowerCase() === 'mermaid') {
-      try {
-        const id = 'mermaid-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
-        return '<div class="mermaid" id="' + id + '">' + str + '</div>'
-      } catch (__) {}
+      const id = 'mermaid-' + Math.random().toString(36).substr(2, 9)
+      return `<div class="mermaid" id="${id}" data-code="${md.utils.escapeHtml(str)}">${md.utils.escapeHtml(str)}</div>`
     }
-
-    if (lang && hljs.default && hljs.default.getLanguage(lang)) {
+    if (lang && hljs.getLanguage(lang)) {
       try {
         return '<pre class="hljs"><code>' +
-               hljs.default.highlight(str, { language: lang }).value +
-               '</code></pre>'
-      } catch (__) {}
-    } else if (lang && hljs.getLanguage(lang)) {
-      try {
-        return '<pre class="hljs"><code>' +
-               hljs.highlight(str, { language: lang }).value +
-               '</code></pre>'
-      } catch (__) {}
+          hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+          '</code></pre>'
+      } catch (__) { }
     }
     return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>'
   }
 })
 
-// 添加插件
+// Custom Image Renderer for Tauri Asset Protocol
+const defaultImageRender = md.renderer.rules.image || function (tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options);
+};
+
+md.renderer.rules.image = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const srcIndex = token.attrIndex('src');
+
+  if (srcIndex >= 0) {
+    let src = token.attrs[srcIndex][1];
+
+    // Only process if in Tauri and not an external URL
+    if (window.__TAURI_IPC__ && !src.startsWith('http') && !src.startsWith('data:')) {
+      try {
+        // Handle file protocol
+        if (src.startsWith('file://')) {
+          // Remove file:// prefix. Note: Windows paths might become /C:/... or C:/...
+          // convertFileSrc expects the absolute system path.
+          src = src.replace(/^file:\/\/\/?/, '');
+
+          // Decode URI components (e.g., %5C -> \)
+          src = decodeURIComponent(src);
+
+          // Fix windows styling if needed (e.g. leading slash removal if naive replace left it?)
+          // Usually convertFileSrc is robust.
+        }
+
+        token.attrs[srcIndex][1] = convertFileSrc(src);
+      } catch (e) {
+        console.warn('Image path conversion failed:', e);
+      }
+    }
+  }
+
+  return defaultImageRender(tokens, idx, options, env, self);
+};
+
+
 md.use(taskLists)
-md.use(katex)
-md.use(anchor, {
-  permalink: anchor.permalink.headerLink()
-})
-md.use(toc, {
-  includeLevel: [1, 2, 3, 4, 5, 6]
-})
+md.use(katex, { throwOnError: false, errorColor: '#cc0000' })
+md.use(anchor, { permalink: anchor.permalink.headerLink() })
+md.use(toc, { includeLevel: [1, 2, 3, 4] })
 
 // 更新预览
 export function updatePreview(content) {
   const previewPane = document.getElementById('previewPane')
   if (previewPane) {
+    // 渲染 Markdown
     const html = md.render(content || '')
     previewPane.innerHTML = html
 
-    // 渲染 Mermaid 图表
-    setTimeout(() => {
-      const mermaidElements = previewPane.querySelectorAll('.mermaid')
-      if (mermaidElements.length > 0) {
-        mermaidElements.forEach((element) => {
-          const id = element.id
-          if (id) {
-            mermaid.render(id, element.textContent).then((result) => {
-              element.innerHTML = result.svg
-            }).catch((error) => {
-              console.error('Mermaid 渲染失败:', error)
-            })
-          }
-        })
+    // 渲染 Mermaid
+    const mermaidElements = previewPane.querySelectorAll('.mermaid')
+    mermaidElements.forEach(async (element) => {
+      const id = element.id;
+      const code = element.getAttribute('data-code') || element.textContent;
+      // Decode HTML entities if needed (md.render escapes it)
+      const txt = document.createElement("textarea");
+      txt.innerHTML = code;
+      const decodedLocation = txt.value;
+
+      try {
+        const { svg } = await mermaid.render(id, decodedLocation);
+        element.innerHTML = svg;
+      } catch (error) {
+        console.error('Mermaid Render Error:', error);
+        element.innerHTML = `<div class="mermaid-error">Mermaid Error: ${error.message}</div>`;
       }
-    }, 100)
+    });
+
+    // Handle internal links manually if needed
+    // ...
   }
 }
 
@@ -98,13 +128,13 @@ export function toggleSideBySide() {
   }
 }
 
-// 监听内容变化
+// 监听内容变化 (Debounce)
 let updateTimeout = null
 export function scheduleUpdate(content) {
   clearTimeout(updateTimeout)
   updateTimeout = setTimeout(() => {
     updatePreview(content)
-  }, 150) // 增加防抖时间到150ms，减少渲染频率
+  }, 150)
 }
 
 // 批量更新优化
@@ -113,11 +143,9 @@ let batchUpdateTimeout = null
 
 export function batchUpdate(content) {
   pendingUpdates.push(content)
-
   if (batchUpdateTimeout) {
     clearTimeout(batchUpdateTimeout)
   }
-
   batchUpdateTimeout = setTimeout(() => {
     if (pendingUpdates.length > 0) {
       const latestContent = pendingUpdates[pendingUpdates.length - 1]
@@ -127,31 +155,25 @@ export function batchUpdate(content) {
   }, 200)
 }
 
-// 初始化时加载 highlight.js 和 KaTeX
+// Load Styles (Highlight.js & KaTeX)
+// Since we use importing logic, we still need the CSS. Check if we can import CSS in JS.
+// Assuming standard Vite setup, we should link them in index.html, but injecting here is safer for single-file logic.
 window.addEventListener('DOMContentLoaded', () => {
-  // 动态加载 highlight.js
-  const script = document.createElement('script')
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js'
-  script.onload = () => {
-    // 加载常用语言
-    const languages = ['javascript', 'python', 'java', 'c', 'cpp', 'csharp', 'php', 'ruby', 'go', 'rust', 'typescript', 'html', 'css', 'sql', 'bash', 'json', 'xml', 'yaml']
-    languages.forEach(lang => {
-      const langScript = document.createElement('script')
-      langScript.src = `https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/${lang}.min.js`
-      document.head.appendChild(langScript)
-    })
+  // Highlight.js CSS
+  if (!document.getElementById('hljs-style')) {
+    const link = document.createElement('link')
+    link.id = 'hljs-style'
+    link.rel = 'stylesheet'
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css' // Use Dark by default or dynamic?
+    document.head.appendChild(link)
   }
-  document.head.appendChild(script)
 
-  // 添加样式
-  const link = document.createElement('link')
-  link.rel = 'stylesheet'
-  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css'
-  document.head.appendChild(link)
-
-  // 加载 KaTeX 样式
-  const katexLink = document.createElement('link')
-  katexLink.rel = 'stylesheet'
-  katexLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css'
-  document.head.appendChild(katexLink)
+  // KaTeX CSS
+  if (!document.getElementById('katex-style')) {
+    const katexLink = document.createElement('link')
+    katexLink.id = 'katex-style'
+    katexLink.rel = 'stylesheet'
+    katexLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css'
+    document.head.appendChild(katexLink)
+  }
 })

@@ -7,19 +7,20 @@ export function createTableEditor() {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: #2d2d30;
-    border: 1px solid #3e3e42;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-lg);
     z-index: 1000;
     display: none;
+    min-width: 300px;
   `
 
   // 标题
   const title = document.createElement('h3')
   title.textContent = '插入表格'
-  title.style.cssText = 'margin: 0 0 20px 0; color: #cccccc;'
+  title.style.cssText = 'margin: 0 0 24px 0; color: var(--text-primary); font-size: 16px; font-weight: 600;'
   tableEditor.appendChild(title)
 
   // 行数和列数输入
@@ -31,30 +32,36 @@ export function createTableEditor() {
 
   // 按钮组
   const buttonGroup = document.createElement('div')
-  buttonGroup.style.cssText = 'margin-top: 20px; text-align: right;'
-
-  const insertBtn = document.createElement('button')
-  insertBtn.textContent = '插入'
-  insertBtn.style.cssText = `
-    padding: 8px 16px;
-    margin-right: 10px;
-    background: #007acc;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  `
+  buttonGroup.style.cssText = 'margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;'
 
   const cancelBtn = document.createElement('button')
   cancelBtn.textContent = '取消'
   cancelBtn.style.cssText = `
     padding: 8px 16px;
     background: transparent;
-    color: #cccccc;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
     cursor: pointer;
+    transition: var(--transition-fast);
   `
+  cancelBtn.onmouseenter = () => { cancelBtn.style.color = 'var(--text-primary)'; cancelBtn.style.borderColor = 'var(--text-secondary)'; }
+  cancelBtn.onmouseleave = () => { cancelBtn.style.color = 'var(--text-secondary)'; cancelBtn.style.borderColor = 'var(--border-color)'; }
+
+  const insertBtn = document.createElement('button')
+  insertBtn.textContent = '插入'
+  insertBtn.style.cssText = `
+    padding: 8px 16px;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: var(--transition-fast);
+  `
+  insertBtn.onmouseenter = () => insertBtn.style.background = 'var(--accent-hover)'
+  insertBtn.onmouseleave = () => insertBtn.style.background = 'var(--accent-color)'
 
   insertBtn.onclick = () => {
     const rows = parseInt(rowInput.querySelector('input').value)
@@ -70,8 +77,8 @@ export function createTableEditor() {
     tableEditor.style.display = 'none'
   }
 
-  buttonGroup.appendChild(insertBtn)
   buttonGroup.appendChild(cancelBtn)
+  buttonGroup.appendChild(insertBtn)
   tableEditor.appendChild(buttonGroup)
 
   document.body.appendChild(tableEditor)
@@ -82,11 +89,11 @@ export function createTableEditor() {
 // 创建输入框
 function createInput(label, value, type, min, max) {
   const container = document.createElement('div')
-  container.style.cssText = 'margin-bottom: 15px;'
+  container.style.cssText = 'margin-bottom: 16px;'
 
   const labelEl = document.createElement('label')
   labelEl.textContent = label
-  labelEl.style.cssText = 'display: block; margin-bottom: 5px; color: #cccccc;'
+  labelEl.style.cssText = 'display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 13px;'
 
   const input = document.createElement('input')
   input.type = type
@@ -95,12 +102,17 @@ function createInput(label, value, type, min, max) {
   input.max = max
   input.style.cssText = `
     width: 100%;
-    padding: 8px;
-    background: #1e1e1e;
-    color: #d4d4d4;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
+    padding: 10px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    outline: none;
+    transition: var(--transition-fast);
   `
+  input.onfocus = () => input.style.borderColor = 'var(--accent-color)'
+  input.onblur = () => input.style.borderColor = 'var(--border-color)'
 
   container.appendChild(labelEl)
   container.appendChild(input)
@@ -151,11 +163,16 @@ export function showTableEditor() {
   const tableEditor = document.getElementById('tableEditor')
   if (tableEditor) {
     tableEditor.style.display = 'block'
+    // Focus first input
+    const input = tableEditor.querySelector('input')
+    if (input) input.focus()
   }
 }
 
 // 智能表格编辑（在表格内时提供编辑功能）
 export function setupTableEditing(editor) {
+  if (!editor || !editor.contentDOM) return
+
   editor.contentDOM.addEventListener('dblclick', (e) => {
     const line = e.target.closest('.cm-line')
     if (!line) return
@@ -177,12 +194,13 @@ function showTableContextMenu(e, line) {
   const menu = document.createElement('div')
   menu.style.cssText = `
     position: fixed;
-    background: #2d2d30;
-    border: 1px solid #3e3e42;
-    border-radius: 4px;
-    padding: 4px 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 6px;
     z-index: 1000;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    box-shadow: var(--shadow-lg);
+    min-width: 120px;
   `
   menu.style.left = e.clientX + 'px'
   menu.style.top = e.clientY + 'px'
@@ -197,14 +215,16 @@ function showTableContextMenu(e, line) {
   options.forEach(option => {
     const menuItem = document.createElement('div')
     menuItem.style.cssText = `
-      padding: 6px 12px;
+      padding: 8px 12px;
       cursor: pointer;
       font-size: 13px;
-      color: #cccccc;
+      color: var(--text-primary);
       white-space: nowrap;
+      border-radius: var(--radius-sm);
+      transition: var(--transition-fast);
     `
     menuItem.textContent = option.text
-    menuItem.onmouseenter = () => menuItem.style.background = '#3e3e42'
+    menuItem.onmouseenter = () => menuItem.style.background = 'var(--bg-tertiary)'
     menuItem.onmouseleave = () => menuItem.style.background = 'transparent'
     menuItem.onclick = () => {
       option.action()
@@ -228,6 +248,10 @@ function addTableRow(line) {
   if (!window.editor) return
 
   const editor = window.editor
+  // Need to be careful to get actual EditorView via window object if passed editor is not valid view
+  // Line object here is DOM element. CodeMirror logic uses state.
+
+  // Logic from original file seems safely state-based:
   const lineNumber = editor.state.doc.lineAt(editor.state.selection.main.head).number
   const lineInfo = editor.state.doc.line(lineNumber)
 
@@ -378,7 +402,8 @@ export function initTableEditor() {
 
   // 添加表格快捷键
   document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
+    // Alt + T for table insert
+    if (e.altKey && e.key === 't') {
       e.preventDefault()
       showTableEditor()
     }
