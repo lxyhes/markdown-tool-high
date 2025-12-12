@@ -3,7 +3,10 @@ export function updateStatusBar(doc, selection) {
   // 更新字数统计
   const text = doc.toString()
   const wordCount = countWords(text)
-  document.getElementById('wordCount').textContent = `${wordCount} 字`
+  const wordCountEl = document.getElementById('wordCount')
+  if (wordCountEl) {
+    wordCountEl.textContent = `${wordCount} 字`
+  }
 
   // 更新光标位置
   if (selection) {
@@ -42,5 +45,8 @@ function countWords(text) {
 // 更新文件路径显示
 export function updateFilePathDisplay(path) {
   const fileName = path ? path.split(/[/\\]/).pop() : '未命名.md'
-  document.getElementById('filePath').textContent = fileName
+  const filePathEl = document.getElementById('filePath')
+  if (filePathEl) {
+    filePathEl.textContent = fileName
+  }
 }

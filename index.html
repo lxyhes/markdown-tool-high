@@ -173,14 +173,13 @@
 
     /* --- Toolbar --- */
     .toolbar {
-      height: var(--toolbar-height);
+      height: 40px;
       background: var(--bg-primary);
-      /* Blend with editor */
       border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
       padding: 0 20px;
-      gap: 8px;
+      gap: 16px;
       z-index: 20;
     }
 
@@ -190,53 +189,49 @@
 
     .toolbar-separator {
       width: 1px;
-      height: 20px;
+      height: 24px;
       background: var(--border-color);
-      margin: 0 8px;
+      margin: 0;
     }
 
     .toolbar-button {
       background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-secondary);
+      border: none;
+      color: var(--text-primary);
       cursor: pointer;
       height: 32px;
       padding: 0 12px;
-      border-radius: var(--radius-md);
-      font-size: 13px;
+      border-radius: 4px;
+      font-size: 14px;
       font-weight: 500;
       display: flex;
       align-items: center;
       gap: 6px;
-      transition: var(--transition-fast);
+      transition: all 0.15s ease;
       font-family: var(--font-sans);
+      line-height: 20px;
     }
 
     .toolbar-button:hover {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
+      background: rgba(232, 232, 232, 0.1);
     }
 
     .toolbar-button:active {
-      transform: translateY(1px);
+      background: rgba(232, 232, 232, 0.2);
     }
 
     .toolbar-button.active {
       background: var(--accent-light);
       color: var(--accent-color);
-      border-color: rgba(34, 139, 230, 0.2);
     }
 
-    .toolbar-button-primary {
-      background: var(--accent-color);
-      color: white;
-      box-shadow: var(--shadow-sm);
+    .toolbar-button:disabled {
+      color: var(--text-tertiary);
+      cursor: not-allowed;
     }
 
-    .toolbar-button-primary:hover {
-      background: var(--accent-hover);
-      color: white;
-      box-shadow: var(--shadow-md);
+    .toolbar-button:disabled:hover {
+      background: transparent;
     }
 
     /* --- Editor Area --- */
@@ -571,9 +566,36 @@
       border-radius: var(--radius-md) !important;
     }
 
-    /* Typora-like clean look */
+    /* Typora-like clean look - Adjusted for Folding */
     .cm-gutters {
+      background-color: transparent !important;
+      border-right: none !important;
+      color: var(--text-tertiary);
+    }
+
+    .cm-lineNumbers {
       display: none !important;
+      /* Hide line numbers, keep fold gutter */
+    }
+
+    .cm-foldGutter {
+      width: 20px;
+    }
+
+    .cm-foldGutter .cm-gutterElement {
+      cursor: pointer;
+      opacity: 0;
+      /* Auto-hide */
+      transition: opacity 0.2s;
+    }
+
+    .cm-content:hover~.cm-gutters .cm-foldGutter .cm-gutterElement,
+    .cm-gutters:hover .cm-foldGutter .cm-gutterElement {
+      opacity: 0.5;
+    }
+
+    .cm-foldGutter .cm-gutterElement:hover {
+      opacity: 1;
     }
   </style>
 </head>
@@ -584,24 +606,24 @@
     <div class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-title">
-          <!-- Icon: Book Open -->
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-          </svg>
-          MarkFlow
-        </div>
-        <button class="toolbar-button" id="refreshFiles" title="刷新文件列表" onclick="refreshFileTree()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 4v6h-6"></path>
-            <path d="M1 20v-6h6"></path>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          文件
+        </div>
+        <button class="toolbar-button" onclick="window.toggleSidebar && window.toggleSidebar()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
-      <div id="fileTree" class="file-tree">
-        <!-- File items injected here -->
+      <div class="file-tree" id="fileTree">
+        <!-- File tree will be populated by JavaScript -->
       </div>
     </div>
 
@@ -609,14 +631,14 @@
     <div class="main-content">
       <!-- Toolbar -->
       <div class="toolbar">
-        <button class="toolbar-button" onclick="toggleSidebar()" title="切换侧边栏">
+        <button class="toolbar-button" onclick="window.toggleSidebar && window.toggleSidebar()" title="切换侧边栏">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <line x1="9" y1="3" x2="9" y2="21" />
           </svg>
         </button>
 
-        <button class="toolbar-button" onclick="openFile()" title="打开文件 (Ctrl+O)">
+        <button class="toolbar-button" onclick="window.openFile && window.openFile()" title="打开文件 (Ctrl+O)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
@@ -627,7 +649,7 @@
           <span class="label">打开</span>
         </button>
 
-        <button class="toolbar-button" onclick="openFolder()" title="打开文件夹 (Ctrl+Shift+O)">
+        <button class="toolbar-button" onclick="window.openFolder && window.openFolder()" title="打开文件夹 (Ctrl+Shift+O)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
@@ -636,20 +658,19 @@
 
         <div class="toolbar-separator"></div>
 
-        <button class="toolbar-button" onclick="toggleTypewriterMode()" title="打字机模式 (Typewriter Mode)">
+        <button class="toolbar-button" onclick="window.toggleTypewriterMode && window.toggleTypewriterMode()" title="打字机模式 (Typewriter Mode)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="4" y="6" width="16" height="12" rx="2" />
             <line x1="4" y1="12" x2="20" y2="12" />
           </svg>
         </button>
-        <button class="toolbar-button" onclick="toggleFocusMode()" title="专注模式 (Focus Mode)">
+        <button class="toolbar-button" onclick="window.toggleFocusMode && window.toggleFocusMode()" title="专注模式 (Focus Mode)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2a10 10 0 1 0 10 10 10 10 0 0 0-10-10zm0 14a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"></path>
           </svg>
         </button>
 
         <div class="toolbar-separator"></div>
-
 
         <!-- Insert Dropdown -->
         <div style="position: relative;">
@@ -662,63 +683,20 @@
           </button>
           <div id="insertMenu" class="context-menu"
             style="display: none; position: absolute; top: 100%; left: 0; min-width: 160px; z-index: 1000; margin-top: 5px;">
-            <div class="menu-item" onclick="insertImage(); toggleInsertMenu()">🖼️ 图片</div>
-            <div class="menu-item" onclick="insertLink(); toggleInsertMenu()">🔗 链接</div>
-            <div class="menu-item" onclick="showTableEditor(); toggleInsertMenu()">📊 表格</div>
+            <div class="menu-item" onclick="window.insertImage && window.insertImage(); toggleInsertMenu()">🖼️ 图片</div>
+            <div class="menu-item" onclick="window.insertLink && window.insertLink(); toggleInsertMenu()">🔗 链接</div>
+            <div class="menu-item" onclick="window.showTableEditor && window.showTableEditor(); toggleInsertMenu()">📊 表格</div>
             <div class="menu-separator" style="height:1px; background:var(--border-color); margin:4px 0"></div>
-            <div class="menu-item" onclick="insertCodeBlock(); toggleInsertMenu()">💻 代码块</div>
-            <div class="menu-item" onclick="insertMathBlock(); toggleInsertMenu()">∑ 公式</div>
-            <div class="menu-item" onclick="toggleQuote(); toggleInsertMenu()">❝ 引用</div>
-            <div class="menu-item" onclick="insertHorizontalRule(); toggleInsertMenu()">➖ 分割线</div>
+            <div class="menu-item" onclick="window.insertCodeBlock && window.insertCodeBlock(); toggleInsertMenu()">💻 代码块</div>
+            <div class="menu-item" onclick="window.insertMathBlock && window.insertMathBlock(); toggleInsertMenu()">∑ 公式</div>
+            <div class="menu-item" onclick="window.toggleQuote && window.toggleQuote(); toggleInsertMenu()">❝ 引用</div>
+            <div class="menu-item" onclick="window.insertHorizontalRule && window.insertHorizontalRule(); toggleInsertMenu()">➖ 分割线</div>
             <div class="menu-separator" style="height:1px; background:var(--border-color); margin:4px 0"></div>
-            <div class="menu-item" onclick="toggleSourceMode(); toggleInsertMenu()">📝 源代码模式</div>
+            <div class="menu-item" onclick="window.toggleSourceMode && window.toggleSourceMode(); toggleInsertMenu()">📝 源代码模式</div>
           </div>
         </div>
 
-        <style>
-          .menu-item {
-            padding: 8px 12px;
-            cursor: pointer;
-            font-size: 13px;
-            color: var(--text-primary);
-            border-radius: var(--radius-sm);
-            transition: background 0.1s;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          }
-
-          .menu-item:hover {
-            background: var(--bg-tertiary);
-          }
-        </style>
-
-        <script>
-          function toggleInsertMenu(e) {
-            if (e) e.stopPropagation();
-            const menu = document.getElementById('insertMenu');
-            const isHidden = menu.style.display === 'none';
-
-            // Close others if needed
-
-            menu.style.display = isHidden ? 'block' : 'none';
-
-            if (isHidden) {
-              const closeMenu = (e) => {
-                if (!menu.contains(e.target)) {
-                  menu.style.display = 'none';
-                  document.removeEventListener('click', closeMenu);
-                }
-              };
-              // Delay slightly to avoid immediate close from current click bubbling? 
-              // stopePropagation called above.
-              document.addEventListener('click', closeMenu);
-            }
-          }
-        </script>
-
-        <button class="toolbar-button" onclick="newFile()" title="新建文件">
+        <button class="toolbar-button" onclick="window.newFile && window.newFile()" title="新建文件">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
@@ -730,7 +708,7 @@
 
         <div class="toolbar-separator"></div>
 
-        <button class="toolbar-button" onclick="saveFile()" title="保存 (Ctrl+S)">
+        <button class="toolbar-button" onclick="window.saveFile && window.saveFile()" title="保存 (Ctrl+S)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
             <polyline points="17 21 17 13 7 13 7 21" />
@@ -739,7 +717,7 @@
           <span class="label">保存</span>
         </button>
 
-        <button class="toolbar-button" onclick="exportPDF()" title="导出 PDF">
+        <button class="toolbar-button" onclick="window.exportPDF && window.exportPDF()" title="导出 PDF">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="7 10 12 15 17 10" />
@@ -750,7 +728,7 @@
 
         <div class="toolbar-spacer"></div>
 
-        <button class="toolbar-button" id="sideBySideToggle" onclick="toggleSideBySide()" title="分屏预览">
+        <button class="toolbar-button" id="sideBySideToggle" onclick="window.toggleSideBySide && window.toggleSideBySide()" title="分屏预览">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <line x1="12" y1="3" x2="12" y2="21" />
@@ -758,7 +736,7 @@
           <span class="label">分屏</span>
         </button>
 
-        <button class="toolbar-button" id="previewToggle" onclick="togglePreview()" title="预览 (Ctrl+P)">
+        <button class="toolbar-button" id="previewToggle" onclick="window.togglePreview && window.togglePreview()" title="预览 (Ctrl+P)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
             <circle cx="12" cy="12" r="3" />
@@ -766,7 +744,7 @@
           <span class="label">预览</span>
         </button>
 
-        <button class="toolbar-button" onclick="toggleOutline()" title="大纲">
+        <button class="toolbar-button" onclick="window.toggleOutline && window.toggleOutline()" title="大纲">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="8" y1="6" x2="21" y2="6" />
             <line x1="8" y1="12" x2="21" y2="12" />
@@ -778,27 +756,76 @@
         </button>
       </div>
 
+      <style>
+        .menu-item {
+          padding: 8px 12px;
+          cursor: pointer;
+          font-size: 13px;
+          color: var(--text-primary);
+          border-radius: var(--radius-sm);
+          transition: background 0.1s;
+          white-space: nowrap;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .menu-item:hover {
+          background: var(--bg-tertiary);
+        }
+      </style>
+
+      <script>
+        function toggleInsertMenu(e) {
+          if (e) e.stopPropagation();
+          const menu = document.getElementById('insertMenu');
+          const isHidden = menu.style.display === 'none';
+
+          menu.style.display = isHidden ? 'block' : 'none';
+
+          if (isHidden) {
+            const closeMenu = (e) => {
+              if (!menu.contains(e.target)) {
+                menu.style.display = 'none';
+                document.removeEventListener('click', closeMenu);
+              }
+            };
+            document.addEventListener('click', closeMenu);
+          }
+        }
+      </script>
+
       <!-- Editor Container -->
       <div class="editor-container">
-        <div id="editorPane" class="editor-pane">
+        <!-- Editor Pane -->
+        <div class="editor-pane" id="editorPane">
           <div id="editor"></div>
         </div>
-        <div id="previewPane" class="preview-pane hidden"></div>
+
+        <!-- Preview Pane -->
+        <div class="preview-pane hidden" id="previewPane">
+          <!-- Preview content will be rendered here -->
+        </div>
       </div>
 
       <!-- Status Bar -->
       <div class="status-bar">
-        <div class="status-item" id="filePath">未命名.md</div>
         <div class="status-item">
-          <span id="cursorInfo">Ln 1, Col 1</span>
-          <span style="opacity:0.3">|</span>
+          <span id="filePath">未命名.md</span>
+        </div>
+        <div class="status-item">
           <span id="wordCount">0 字</span>
+          <span>|</span>
+          <span id="cursorInfo">Ln 1, Col 1</span>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Theme Switcher (Injected by themes.js) -->
+
   <!-- Scripts -->
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <script type="module" src="/src/main.js"></script>
   <script>
     // Helper for legacy inline clicks in original code, though we try to use listeners in main.js
