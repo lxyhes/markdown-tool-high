@@ -2,8 +2,16 @@ import { syntaxTree } from "@codemirror/language"
 import { RangeSetBuilder } from "@codemirror/state"
 import { Decoration, ViewPlugin, WidgetType, EditorView } from "@codemirror/view"
 import katex from 'katex'
+import mermaid from 'mermaid'
 // Ensure CSS is loaded either here or global. Assuming global or main.js covers it. 
 // If not, text logic works, style missing.
+
+// Init mermaid
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'default',
+    securityLevel: 'loose'
+});
 
 // --- Widgets ---
 
@@ -13,6 +21,7 @@ class ImageWidget extends WidgetType {
         this.url = url;
         this.alt = alt;
     }
+    eq(other) { return this.url === other.url && this.alt === other.alt; }
 
     toDOM(view) {
         const div = document.createElement("div");
@@ -23,12 +32,9 @@ class ImageWidget extends WidgetType {
         img.src = this.url;
         img.alt = this.alt;
         img.style.maxWidth = "100%";
-        // Limit height to avoid massive layout shift
         img.style.maxHeight = "400px";
         img.style.borderRadius = "4px";
         img.style.boxShadow = "0 2px 8px rgba(0,0,0,0.1)";
-
-        // Handle error/broken link
         img.onerror = () => { img.style.display = 'none'; };
 
         div.appendChild(img);
@@ -37,6 +43,7 @@ class ImageWidget extends WidgetType {
 }
 
 class HRWidget extends WidgetType {
+    eq(other) { return true; }
     toDOM() {
         const hr = document.createElement("hr");
         hr.className = "cm-hr-widget";
@@ -50,6 +57,7 @@ class CheckboxWidget extends WidgetType {
         this.checked = checked;
         this.pos = pos;
     }
+    eq(other) { return this.checked === other.checked && this.pos === other.pos; }
 
     toDOM(view) {
         const input = document.createElement("input");
@@ -72,6 +80,7 @@ class CheckboxWidget extends WidgetType {
 }
 
 class BulletWidget extends WidgetType {
+    eq(other) { return true; }
     toDOM() {
         const span = document.createElement("span");
         span.textContent = "•";
@@ -88,11 +97,12 @@ class MathWidget extends WidgetType {
         this.latex = latex;
         this.displayMode = displayMode;
     }
+    eq(other) { return this.latex === other.latex && this.displayMode === other.displayMode; }
 
     toDOM() {
         const span = document.createElement("span");
         span.className = this.displayMode ? "cm-math-block" : "cm-math-inline";
-        span.style.cursor = "pointer"; // Indicate interactivity
+        span.style.cursor = "pointer";
 
         try {
             katex.render(this.latex, span, {
@@ -100,10 +110,39 @@ class MathWidget extends WidgetType {
                 throwOnError: false
             });
         } catch (e) {
-            span.textContent = this.latex; // Fallback
+            span.textContent = this.latex;
             span.style.color = "red";
         }
         return span;
+    }
+}
+
+class MermaidWidget extends WidgetType {
+    constructor(code) {
+        super();
+        this.code = code;
+    }
+    eq(other) { return this.code === other.code; }
+
+    toDOM() {
+        const div = document.createElement("div");
+        div.className = "cm-mermaid-block";
+        div.style.textAlign = "center";
+        div.style.margin = "1em 0";
+        div.innerHTML = "Rendering...";
+
+        const id = "mermaid-" + Math.random().toString(36).substr(2, 9);
+
+        // Render async
+        mermaid.render(id, this.code).then(({ svg }) => {
+            div.innerHTML = svg;
+        }).catch(e => {
+            div.innerHTML = `<span style="color:red; font-size:0.8em">Mermaid Error: ${e.message}</span>`;
+            // Keep the source code visible in tooltip or similar? 
+            div.title = this.code;
+        });
+
+        return div;
     }
 }
 
@@ -281,47 +320,42 @@ const livePreviewPlugin = ViewPlugin.fromClass(class {
                         }
                     }
 
-                    // 11. Fenced Code Block Delimiters
-                    // Structure: FencedCode -> CodeMark (```), CodeInfo (lang), ... content ..., CodeMark (```)
-                    // We want to hide the delimiters if cursor is not inside the block.
-                    // But FencedCode is a huge block.
-                    // If cursor is inside content, we usually want to see delimiters?
-                    // Typora: Only hide if cursor is NOT in the block. 
-                    // Let's hide the top/bottom lines if cursor is not strictly inside.
-
+                    // 11. Fenced Code Block
                     if (nodeName === "FencedCode") {
-                        // Check if cursor inside block
                         if (!isTouching(nodeFrom, nodeTo)) {
-                            // Find children: CodeMark (start), CodeInfo, CodeMark (end)
-                            // We can't iterate children easily inside enter() without re-traversal or cursor.
-
-                            // Hack: Regex the content? Dangerous for big blocks.
-                            // Better: Just hide the whole block markers?
-                            // CodeMark nodes are children. Iterate will find them.
-                            // How do we distinguish block fence from inline backtick?
-                            // FencedCode children CodeMarks are lines usually.
-                            // Let's use a specialized check when we encounter `CodeMark`?
-                            // Parent determination is hard.
-
-                            // Let's manually parse the first line and last line of FencedCode text.
-                            // Start: ```lang
-                            // End: ```
-                            // We can build decorations based on line offsets.
-
                             const text = state.sliceDoc(nodeFrom, nodeTo);
                             const lines = text.split('\n');
-                            if (lines.length >= 2) {
-                                // Hide first line (including lang info)
-                                const firstLineLen = lines[0].length;
-                                builder.add(nodeFrom, nodeFrom + firstLineLen, Decoration.replace({
-                                    widget: new LanguageBadgeWidget(lines[0].replace(/`/g, '').trim())
+
+                            // Check for Mermaid
+                            // Format: ```mermaid ... ```
+                            // We check the first line.
+                            const firstLine = lines[0].trim().toLowerCase();
+
+                            if (firstLine.includes("mermaid")) {
+                                // Extract code content (everything between wrapper)
+                                // Remove first line and last line (assuming last is ```)
+                                const code = lines.slice(1, lines.length - 1).join('\n');
+
+                                builder.add(nodeFrom, nodeTo, Decoration.replace({
+                                    widget: new MermaidWidget(code),
+                                    inclusive: false
                                 }));
 
-                                // Hide last line if it is just backticks
-                                const lastLine = lines[lines.length - 1];
-                                if (lastLine.trim().startsWith("`") || lastLine.trim().startsWith("~")) {
-                                    const lastLineStart = nodeTo - lastLine.length;
-                                    builder.add(lastLineStart, nodeTo, Decoration.replace({}));
+                            } else {
+                                // Existing Logic for other code blocks: Hide delimiters
+                                if (lines.length >= 2) {
+                                    // Hide first line (including lang info)
+                                    const firstLineLen = lines[0].length;
+                                    builder.add(nodeFrom, nodeFrom + firstLineLen, Decoration.replace({
+                                        widget: new LanguageBadgeWidget(lines[0].replace(/`/g, '').trim())
+                                    }));
+
+                                    // Hide last line if it is just backticks
+                                    const lastLine = lines[lines.length - 1];
+                                    if (lastLine.trim().startsWith("`") || lastLine.trim().startsWith("~")) {
+                                        const lastLineStart = nodeTo - lastLine.length;
+                                        builder.add(lastLineStart, nodeTo, Decoration.replace({}));
+                                    }
                                 }
                             }
                         }

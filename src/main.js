@@ -11,7 +11,6 @@ import { updateStatusBar } from './statusBar.js'
 import { showToast } from './utils.js'
 import { setupPasteHandler, setupDragDropHandler } from './imageManager.js'
 import { parseOutline, renderOutline, updateActiveHeading, createOutlineContainer, toggleOutline } from './outline.js'
-import { initFocusMode, toggleFocusMode, toggleTypewriterMode } from './focusMode.js'
 import { showExportMenu } from './export.js'
 import { initTheme } from './themes.js'
 import { initTableEditor, showTableEditor } from './tableEditor.js'
@@ -30,6 +29,12 @@ import {
 } from './editorActions.js'
 import { slashCommandExtension } from './slashCommands.js'
 import { livePreviewExtension } from './livePreview.js'
+import {
+  typewriterCompartment,
+  focusModeCompartment,
+  getTypewriterExtension,
+  getFocusModeExtension
+} from './viewModes.js'
 
 let editor = null
 let currentFilePath = null
@@ -37,9 +42,19 @@ let isPreviewVisible = false
 let isSideBySide = false
 // isSourceMode moved to editorActions
 let autoSaveInterval = null
+let typewriterEnabled = false
+let focusModeEnabled = false
 
 // 初始化编辑器
 function initEditor() {
+  // ...
+  // Note: I cannot replace the whole initEditor easily because it is huge.
+  // I will replace the variable block and the start of initEditor to at least get the vars.
+  // Wait, I can't inject extensions into `initEditor` without replacing `initEditor` body or at least the `extensions: [...]` part.
+  // The `extensions` array is lines 75-144.
+
+  // Let's replace the top block of imports and variables first.
+
   // ... (content same as before)
   // ...
   const initialContent = `# MarkFlow - 高性能 Markdown 编辑器
@@ -81,6 +96,8 @@ function initEditor() {
       editorEnhancementsTheme,
       slashCommandExtension,
       livePreviewExtension,
+      typewriterCompartment.of([]),
+      focusModeCompartment.of([]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           batchUpdate(update.state.doc.toString())
@@ -346,6 +363,26 @@ window.addEventListener('DOMContentLoaded', () => {
   window.toggleOutline = toggleOutline
   window.toggleSourceMode = toggleSourceMode
 
+  window.toggleTypewriterMode = () => {
+    if (!editor) return;
+    typewriterEnabled = !typewriterEnabled;
+    editor.dispatch({
+      effects: typewriterCompartment.reconfigure(getTypewriterExtension(typewriterEnabled))
+    });
+    const btn = document.querySelector('button[onclick="toggleTypewriterMode()"]');
+    if (btn) btn.classList.toggle('active', typewriterEnabled);
+  };
+
+  window.toggleFocusMode = () => {
+    if (!editor) return;
+    focusModeEnabled = !focusModeEnabled;
+    editor.dispatch({
+      effects: focusModeCompartment.reconfigure(getFocusModeExtension(focusModeEnabled))
+    });
+    const btn = document.querySelector('button[onclick="toggleFocusMode()"]');
+    if (btn) btn.classList.toggle('active', focusModeEnabled);
+  };
+
   // Insert Actions
   window.insertCodeBlock = insertCodeBlock
   window.insertMathBlock = insertMathBlock
@@ -371,7 +408,6 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   createOutlineContainer()
-  initFocusMode()
   initTheme()
   initTableEditor()
   setupDragAndDrop() // Use the local function
