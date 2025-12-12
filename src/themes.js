@@ -83,7 +83,7 @@ const themes = {
   }
 }
 
-let currentTheme = 'dark'
+let currentTheme = 'light'
 
 // 应用主题
 export function applyTheme(themeName) {

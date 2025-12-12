@@ -14,10 +14,21 @@ import { parseOutline, renderOutline, updateActiveHeading, createOutlineContaine
 import { initFocusMode, toggleFocusMode, toggleTypewriterMode } from './focusMode.js'
 import { showExportMenu } from './export.js'
 import { initTheme } from './themes.js'
-import { initTableEditor } from './tableEditor.js'
+import { initTableEditor, showTableEditor } from './tableEditor.js'
 import { headerPlugin, editorEnhancementsTheme } from './editorEnhancements.js'
 import { showCommandPalette } from './commandPalette.js'
-import { toggleSourceMode } from './editorActions.js' // New Import
+import {
+  toggleSourceMode,
+  insertCodeBlock,
+  insertMathBlock,
+  insertImage,
+  insertLink,
+  toggleBold,
+  toggleItalic,
+  toggleQuote,
+  insertHorizontalRule
+} from './editorActions.js'
+import { slashCommandExtension } from './slashCommands.js'
 
 let editor = null
 let currentFilePath = null
@@ -67,6 +78,7 @@ function initEditor() {
       dynamicHighlighter,
       headerPlugin,
       editorEnhancementsTheme,
+      slashCommandExtension,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           batchUpdate(update.state.doc.toString())
@@ -115,13 +127,15 @@ function initEditor() {
             return true
           }
         },
-        {
-          key: "Ctrl-p",
-          run: () => {
-            togglePreviewMode()
-            return true
-          }
-        },
+        { key: "Ctrl-p", run: () => { togglePreviewMode(); return true } },
+        { key: "Ctrl-Shift-p", run: () => { showCommandPalette(); return true } },
+        { key: "Ctrl-Shift-k", run: () => { insertCodeBlock(); return true } },
+        { key: "Ctrl-Shift-m", run: () => { insertMathBlock(); return true } },
+        { key: "Ctrl-Shift-i", run: () => { insertImage(); return true } },
+        { key: "Ctrl-k", run: () => { insertLink(); return true } },
+        { key: "Ctrl-b", run: () => { toggleBold(); return true } },
+        { key: "Ctrl-i", run: () => { toggleItalic(); return true } },
+        { key: "Ctrl-Shift-q", run: () => { toggleQuote(); return true } },
         ...searchKeymap
       ])
     ]
@@ -329,6 +343,17 @@ window.addEventListener('DOMContentLoaded', () => {
   window.openFolder = openFolder
   window.toggleOutline = toggleOutline
   window.toggleSourceMode = toggleSourceMode
+
+  // Insert Actions
+  window.insertCodeBlock = insertCodeBlock
+  window.insertMathBlock = insertMathBlock
+  window.insertImage = insertImage
+  window.insertLink = insertLink
+  window.showTableEditor = showTableEditor
+  window.toggleQuote = toggleQuote
+  window.insertHorizontalRule = insertHorizontalRule
+  window.toggleBold = toggleBold
+  window.toggleItalic = toggleItalic
 
   window.toggleSidebar = () => {
     const sidebar = document.querySelector('.sidebar')

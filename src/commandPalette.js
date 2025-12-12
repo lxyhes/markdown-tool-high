@@ -6,7 +6,8 @@ import { applyTheme } from './themes.js'
 import { exportHTML, exportPDF, exportWord, exportMarkdown, showExportMenu } from './export.js'
 import { toggleOutline } from './outline.js'
 import { showMindmap } from './mindmap.js'
-import { toggleSourceMode } from './editorActions.js'
+import { toggleSourceMode, insertCodeBlock, insertMathBlock, insertImage, insertLink, toggleQuote, insertHorizontalRule } from './editorActions.js'
+
 
 export function showCommandPalette() {
     // Check if exists
@@ -63,21 +64,30 @@ export function showCommandPalette() {
 
     // Commands Definition
     const commands = [
-        { id: 'source-mode', name: '切换源代码模式 (Toggle Source Mode)', icon: '📝', action: () => window.toggleSourceMode() },
-        { id: 'mindmap', name: '思维导图 (Mind Map) [Beta]', icon: '🧠', action: () => showMindmap(window.editor.state.doc.toString()) },
-        { id: 'open', name: '打开文件 (Open File)', icon: '📄', action: () => openFile() },
-        { id: 'save', name: '保存文件 (Save File)', icon: '💾', action: () => window.saveFile() }, // use window bound for now
-        { id: 'folder', name: '打开文件夹 (Open Folder)', icon: '📂', action: () => openFolder() },
+        { id: 'open', name: '打开文件 (Open File)', icon: '📂', action: () => window.openFile() },
+        { id: 'folder', name: '打开文件夹 (Open Folder)', icon: '📁', action: () => openFolder() },
+        { id: 'save', name: '保存文件 (Save)', icon: '💾', action: () => saveFile(window.currentFilePath, window.editor.state.doc.toString()) },
+        { id: 'export-pdf', name: '导出 PDF (Export PDF)', icon: '📄', action: () => exportPDF() },
+        { id: 'source-mode', name: '切换源代码模式 (Toggle Source Mode)', icon: '📝', action: () => toggleSourceMode() },
+
+        { id: 'insert-code', name: '插入代码块 (Insert Code Block)', icon: '💻', action: () => insertCodeBlock() },
+        { id: 'insert-image', name: '插入图片 (Insert Image)', icon: '🖼️', action: () => insertImage() },
+        { id: 'insert-link', name: '插入链接 (Insert Link)', icon: '🔗', action: () => insertLink() },
+        { id: 'insert-table', name: '插入表格 (Insert Table)', icon: '📊', action: () => showTableEditor() },
+        { id: 'insert-math', name: '插入数学公式 (Insert Math)', icon: '∑', action: () => insertMathBlock() },
+        { id: 'insert-quote', name: '插入引用 (Insert Quote)', icon: '❝', action: () => toggleQuote() },
+        { id: 'insert-hr', name: '插入分割线 (Horizontal Rule)', icon: '➖', action: () => insertHorizontalRule() },
+
         { id: 'preview', name: '切换预览 (Toggle Preview)', icon: '👁️', action: () => togglePreview() },
-        { id: 'split', name: '切换分屏 (Toggle Split View)', icon: '🌗', action: () => toggleSideBySide() },
-        { id: 'focus', name: '切换专注模式 (Toggle Focus Mode)', icon: '🎯', action: () => toggleFocusMode() },
-        { id: 'typewriter', name: '切换打字机模式 (Toggle Typewriter Mode)', icon: '⌨️', action: () => toggleTypewriterMode() },
-        { id: 'outline', name: '切换大纲 (Toggle Outline)', icon: '📑', action: () => toggleOutline() },
-        { id: 'table', name: '插入表格 (Insert Table)', icon: '📊', action: () => showTableEditor() },
-        { id: 'theme-dark', name: '主题: 深色 (Dark)', icon: '🌑', action: () => applyTheme('dark') },
-        { id: 'theme-light', name: '主题: 浅色 (Light)', icon: '☀️', action: () => applyTheme('light') },
-        { id: 'theme-ocean', name: '主题: 深海 (Ocean)', icon: '🌊', action: () => applyTheme('ocean') },
-        { id: 'export', name: '导出... (Export)', icon: '📤', action: () => window.exportPDF() } // Trigger menu
+        { id: 'side-by-side', name: '分屏模式 (Side by Side)', icon: '🌗', action: () => toggleSideBySide() },
+        { id: 'focus', name: '专注模式 (Focus Mode)', icon: '🎯', action: () => toggleFocusMode() },
+        { id: 'typewriter', name: '打字机模式 (Typewriter Mode)', icon: '⌨️', action: () => toggleTypewriterMode() },
+        { id: 'theme-ocean', name: '主题: 深海 (Theme: Ocean)', icon: '🎨', action: () => applyTheme('ocean') },
+        { id: 'theme-forest', name: '主题: 森林 (Theme: Forest)', icon: '🌲', action: () => applyTheme('forest') },
+        { id: 'theme-dark', name: '主题: 暗黑 (Theme: Dark)', icon: '🌑', action: () => applyTheme('dark') },
+        { id: 'theme-light', name: '主题: 明亮 (Theme: Light)', icon: '☀️', action: () => applyTheme('light') },
+        { id: 'outline', name: '显示/隐藏大纲 (Toggle Outline)', icon: '📑', action: () => toggleOutline() },
+        { id: 'mindmap', name: '查看思维导图 (View Mindmap)', icon: '🧠', action: () => showMindmap() }
     ]
 
     let selectedIndex = 0;

@@ -45,41 +45,58 @@ export function setupDragDropHandler(editor) {
 // 处理图片文件
 async function handleImageFile(file, editor) {
   try {
-    showToast('正在上传图片...')
+    showToast('正在处理图片...')
 
-    // 生成文件名
-    const timestamp = new Date().getTime()
-    const ext = file.name.split('.').pop() || 'png'
-    const fileName = `image_${timestamp}.${ext}`
+    // Check Tauri environment
+    if (window.__TAURI_IPC__) {
+      // 生成文件名
+      const timestamp = new Date().getTime()
+      const ext = file.name.split('.').pop() || 'png'
+      const fileName = `image_${timestamp}.${ext}`
 
-    // 读取文件数据
-    const arrayBuffer = await file.arrayBuffer()
-    const imageData = Array.from(new Uint8Array(arrayBuffer))
+      // 读取文件数据
+      const arrayBuffer = await file.arrayBuffer()
+      const imageData = Array.from(new Uint8Array(arrayBuffer))
 
-    // 保存图片
-    const imagePath = await invoke('save_image', {
-      image_data: imageData,
-      file_name: fileName,
-      save_path: null
-    })
+      // 保存图片
+      // Assumes invoke('save_image') is implemented in backend to save to app_data or relative path
+      const imagePath = await invoke('save_image', {
+        image_data: imageData,
+        file_name: fileName,
+        save_path: null
+      })
 
-    // 插入Markdown图片语法
-    const cursor = editor.state.selection.main.head
-    const imageText = `![${file.name}](${imagePath})`
+      // Convert local absolute path to asset URL if needed (handled by markdown-it image rule we added)
+      // or ensure backend returns a usable path.
 
-    editor.dispatch({
-      changes: {
-        from: cursor,
-        insert: imageText
-      },
-      selection: { anchor: cursor + imageText.length }
-    })
-
-    showToast('图片插入成功')
+      insertAtCursor(editor, `![${file.name}](${imagePath})`)
+      showToast('图片已保存并插入')
+    } else {
+      // Browser Mode: Use Base64
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const base64 = e.target.result
+        insertAtCursor(editor, `![${file.name}](${base64})`)
+        showToast('浏览器模式: 已插入 Base64 图片')
+      }
+      reader.readAsDataURL(file)
+    }
   } catch (error) {
     console.error('图片处理失败:', error)
-    showToast('图片插入失败: ' + error.message)
+    showToast('图片插入失败: ' + error.message, 'error')
   }
+}
+
+function insertAtCursor(editor, text) {
+  const cursor = editor.state.selection.main.head
+  editor.dispatch({
+    changes: {
+      from: cursor,
+      insert: text
+    },
+    selection: { anchor: cursor + text.length }
+  })
+  editor.focus()
 }
 
 // 图片上传服务（可选）
