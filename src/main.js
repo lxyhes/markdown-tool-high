@@ -29,6 +29,7 @@ import {
   insertHorizontalRule
 } from './editorActions.js'
 import { slashCommandExtension } from './slashCommands.js'
+import { livePreviewExtension } from './livePreview.js'
 
 let editor = null
 let currentFilePath = null
@@ -79,6 +80,7 @@ function initEditor() {
       headerPlugin,
       editorEnhancementsTheme,
       slashCommandExtension,
+      livePreviewExtension,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           batchUpdate(update.state.doc.toString())
