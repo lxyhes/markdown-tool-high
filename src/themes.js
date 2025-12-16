@@ -3,42 +3,59 @@ const themes = {
   dark: {
     name: '深色模式',
     colors: {
-      'bg-primary': '#1a1b1e',
-      'bg-secondary': '#25262b',
-      'bg-tertiary': '#2c2e33',
-      'text-primary': '#c1c2c5',
-      'text-secondary': '#909296',
-      'text-tertiary': '#5c5f66',
-      'text-code': '#e0e0e0',
-      'border-color': '#2c2e33',
-      'accent-color': '#228be6',
-      'accent-hover': '#1971c2',
-      'accent-light': 'rgba(34, 139, 230, 0.1)',
-      // Specific for editor connection
-      'color-editor': '#1a1b1e',
-      'color-sidebar': '#25262b',
-      'color-hover': '#2c2e33',
-      'color-active': '#373a40'
+      'bg-primary': '#1e1e1e',
+      'bg-secondary': '#252526',
+      'bg-tertiary': '#37373d',
+      'bg-hover': '#2a2d2e',
+      'text-primary': '#d4d4d4',
+      'text-secondary': '#a6a6a6',
+      'text-tertiary': '#6e7681',
+      'text-code': '#9cdcfe',
+      'border-color': '#3e3e42',
+      'accent-color': '#3794ff',
+      'accent-hover': '#1e70bf',
+      'accent-light': 'rgba(55, 148, 255, 0.15)',
+      
+      // Editor & Component Mappings
+      'color-editor': '#1e1e1e',
+      'color-sidebar': '#252526',
+      'color-hover': '#2a2d2e',
+      'color-active': '#264f78',
+      'color-text': '#d4d4d4',
+      'color-background': '#1e1e1e',
+      'color-accent': '#3794ff',
+      'color-border': '#3e3e42',
+      'color-text-secondary': '#a6a6a6',
+      'color-text-primary': '#d4d4d4'
     }
   },
   light: {
     name: '浅色模式',
     colors: {
       'bg-primary': '#ffffff',
-      'bg-secondary': '#f8f9fa',
-      'bg-tertiary': '#e9ecef',
-      'text-primary': '#212529',
-      'text-secondary': '#868e96',
-      'text-tertiary': '#adb5bd',
-      'text-code': '#24292e',
-      'border-color': '#dee2e6',
-      'accent-color': '#228be6',
-      'accent-hover': '#1971c2',
-      'accent-light': 'rgba(34, 139, 230, 0.1)',
+      'bg-secondary': '#f3f3f3',
+      'bg-tertiary': '#e5e5e5',
+      'bg-hover': '#f0f0f0',
+      'text-primary': '#3b3b3b',
+      'text-secondary': '#666666',
+      'text-tertiary': '#999999',
+      'text-code': '#098658',
+      'border-color': '#e5e5e5',
+      'accent-color': '#007acc',
+      'accent-hover': '#0062a3',
+      'accent-light': 'rgba(0, 122, 204, 0.1)',
+      
+      // Editor & Component Mappings
       'color-editor': '#ffffff',
-      'color-sidebar': '#f8f9fa',
-      'color-hover': '#f1f3f5',
-      'color-active': '#e7f5ff'
+      'color-sidebar': '#f3f3f3',
+      'color-hover': '#f0f0f0',
+      'color-active': '#add6ff',
+      'color-text': '#3b3b3b',
+      'color-background': '#ffffff',
+      'color-accent': '#007acc',
+      'color-border': '#e5e5e5',
+      'color-text-secondary': '#666666',
+      'color-text-primary': '#333333'
     }
   },
   ocean: {

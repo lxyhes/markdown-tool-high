@@ -30,10 +30,9 @@ import {
 import { slashCommandExtension } from './slashCommands.js'
 import { livePreviewExtension } from './livePreview.js'
 import {
-  typewriterCompartment,
-  focusModeCompartment,
-  getTypewriterExtension,
-  getFocusModeExtension
+  typewriterState,
+  typewriterScrollPlugin,
+  toggleTypewriter
 } from './viewModes.js'
 
 let editor = null
@@ -48,14 +47,6 @@ let focusModeEnabled = false
 // 初始化编辑器
 function initEditor() {
   // ...
-  // Note: I cannot replace the whole initEditor easily because it is huge.
-  // I will replace the variable block and the start of initEditor to at least get the vars.
-  // Wait, I can't inject extensions into `initEditor` without replacing `initEditor` body or at least the `extensions: [...]` part.
-  // The `extensions` array is lines 75-144.
-
-  // Let's replace the top block of imports and variables first.
-
-  // ... (content same as before)
   // ...
   const initialContent = `# MarkFlow - 高性能 Markdown 编辑器
 
@@ -96,8 +87,10 @@ function initEditor() {
       editorEnhancementsTheme,
       slashCommandExtension,
       livePreviewExtension,
-      typewriterCompartment.of([]),
-      focusModeCompartment.of([]),
+      // Typewriter Mode Extensions (Always loaded, controlled by State)
+      typewriterState,
+      typewriterScrollPlugin,
+      
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           batchUpdate(update.state.doc.toString())
@@ -175,8 +168,6 @@ function initEditor() {
   setupDragDropHandler(editor)
   startAutoSave()
 }
-
-
 
 function togglePreviewMode() {
   isPreviewVisible = !isPreviewVisible
@@ -366,22 +357,26 @@ window.addEventListener('DOMContentLoaded', () => {
   window.toggleTypewriterMode = () => {
     if (!editor) return;
     typewriterEnabled = !typewriterEnabled;
-    editor.dispatch({
-      effects: typewriterCompartment.reconfigure(getTypewriterExtension(typewriterEnabled))
-    });
-    const btn = document.querySelector('button[onclick="toggleTypewriterMode()"]');
+    toggleTypewriter(editor, typewriterEnabled);
+    const btn = document.getElementById('typewriterModeBtn');
     if (btn) btn.classList.toggle('active', typewriterEnabled);
   };
 
   window.toggleFocusMode = () => {
     if (!editor) return;
     focusModeEnabled = !focusModeEnabled;
-    editor.dispatch({
-      effects: focusModeCompartment.reconfigure(getFocusModeExtension(focusModeEnabled))
-    });
-    const btn = document.querySelector('button[onclick="toggleFocusMode()"]');
+    
+    // Use CSS class for toggling focus mode style
+    if (focusModeEnabled) {
+      editor.dom.classList.add('focus-mode');
+    } else {
+      editor.dom.classList.remove('focus-mode');
+    }
+    
+    const btn = document.getElementById('focusModeBtn');
     if (btn) btn.classList.toggle('active', focusModeEnabled);
   };
+
 
   // Insert Actions
   window.insertCodeBlock = insertCodeBlock
