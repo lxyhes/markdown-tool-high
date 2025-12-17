@@ -34,20 +34,101 @@ import {
   typewriterScrollPlugin,
   toggleTypewriter
 } from './viewModes.js'
+import { initAIAssistant, showAIAssistant } from './aiAssistant.js'
+import { TabManager } from './tabManager.js'
+import { wysiwygPlugin } from './wysiwyg.js'
+import { initGitPanel } from './gitPanel.js'
+// 新增功能模块
+import { showRecentFilesPanel, addRecentFile } from './recentFiles.js'
+import { showEmojiPicker } from './emojiPicker.js'
+import { showTemplateSelector } from './templates.js'
+import { showShortcutsPanel } from './shortcuts.js'
+import { showStatsPanel } from './wordStats.js'
+import { checkRecovery, startAutoRecover, clearRecoveryData } from './autoRecover.js'
+import { showGlobalSearch, showGoToLine } from './globalSearch.js'
+import { showBookmarksPanel, toggleBookmark, nextBookmark, prevBookmark, loadBookmarks } from './bookmarks.js'
+import { setupSmartPaste } from './smartPaste.js'
+import { toggleReadingMode } from './readingMode.js'
+import { showPomodoro } from './pomodoro.js'
+import { showClipboardHistory, setupClipboardListener } from './clipboardHistory.js'
+import { toggleZenMode } from './zenMode.js'
+import { showWritingGoal, initWritingGoal, updateWrittenCount } from './writingGoal.js'
+import { applyFormat, formatSelection } from './formatMarkdown.js'
+import { toggleLineNumbers } from './lineNumbers.js'
+import { showTOCGenerator } from './tocGenerator.js'
+import { setupImagePaste } from './imagePaste.js'
+import { setupLinkPreview } from './linkPreview.js'
+import { initPrintStyles, printDocument } from './printStyles.js'
+import { duplicateLine, deleteLine, moveLineUp, moveLineDown, selectLine } from './duplicateLine.js'
+import { showTransformMenu } from './textTransform.js'
+import { showSnippetsPanel, insertSnippet, getSnippets } from './snippets.js'
 
 let editor = null
-let currentFilePath = null
+let tabManager = null
 let isPreviewVisible = false
 let isSideBySide = false
-// isSourceMode moved to editorActions
 let autoSaveInterval = null
 let typewriterEnabled = false
 let focusModeEnabled = false
+// WYSIWYG State (Compartment ideally, but for now fixed plugin)
+// To make it toggleable, we should put it in a Compartment like typewriter.
+// But user requested "like Typora", usually implies always on or mode switch.
+// Let's add it to extensions directly first.
+
+// 获取基础插件配置
+function getEditorExtensions() {
+  return [
+    basicSetup,
+    markdown(),
+    dynamicTheme,
+    dynamicHighlighter,
+    headerPlugin,
+    editorEnhancementsTheme,
+    slashCommandExtension,
+    livePreviewExtension,
+    wysiwygPlugin, // Enable WYSIWYG by default
+    typewriterState,
+    typewriterScrollPlugin,
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        batchUpdate(update.state.doc.toString())
+        updateStatusBar(update.state.doc, update.state.selection)
+        
+        // 更新写作目标字数
+        const wordCount = update.state.doc.toString().replace(/\s/g, '').length
+        updateWrittenCount(wordCount)
+        
+        // Notify Tab Manager of changes
+        if (tabManager) tabManager.setDirty(true);
+
+        const content = update.state.doc.toString()
+        const headings = parseOutline(content)
+        renderOutline(headings)
+
+        const currentLine = update.state.doc.lineAt(update.state.selection.main.head).number
+        updateActiveHeading(headings, currentLine)
+      }
+    }),
+    keymap.of([
+      { key: "Ctrl-s", run: () => { saveFileHandler(); return true } },
+      { key: "Ctrl-o", run: () => { window.openFile(); return true } }, // Use window wrapper
+      { key: "Ctrl-Shift-o", run: () => { openFolder(); return true } },
+      { key: "Ctrl-p", run: () => { togglePreviewMode(); return true } },
+      { key: "Ctrl-Shift-p", run: () => { showCommandPalette(); return true } },
+      { key: "Ctrl-Shift-k", run: () => { insertCodeBlock(); return true } },
+      { key: "Ctrl-Shift-m", run: () => { insertMathBlock(); return true } },
+      { key: "Ctrl-Shift-i", run: () => { insertImage(); return true } },
+      { key: "Ctrl-k", run: () => { insertLink(); return true } },
+      { key: "Ctrl-b", run: () => { toggleBold(); return true } },
+      { key: "Ctrl-i", run: () => { toggleItalic(); return true } },
+      { key: "Ctrl-Shift-q", run: () => { toggleQuote(); return true } },
+      ...searchKeymap
+    ])
+  ]
+}
 
 // 初始化编辑器
 function initEditor() {
-  // ...
-  // ...
   const initialContent = `# MarkFlow - 高性能 Markdown 编辑器
 
 欢迎使用 MarkFlow！这是一个基于 Tauri + CodeMirror 6 的高性能 Markdown 编辑器。
@@ -55,119 +136,65 @@ function initEditor() {
 ## 功能特点
 
 - 🚀 **高性能**：基于 Tauri，启动快，内存占用低
-- 📝 **实时预览**：支持所见即所得的编辑体验
+- 📑 **多标签页**：支持同时打开多个文件
 - 🎨 **精美主题**：深色主题，护眼舒适
-- 📁 **文件管理**：侧边栏文件树，快速切换
-- 🔍 **全文搜索**：支持正则表达式搜索
-- ⌨️ **快捷键**：丰富的键盘快捷键支持
-
-## 快捷键
-
-- \`Ctrl/Cmd + S\`：保存文件
-- \`Ctrl/Cmd + O\`：打开文件
-- \`Ctrl/Cmd + Shift + O\`：打开文件夹
-- \`Ctrl/Cmd + P\`：切换预览
-- \`Ctrl/Cmd + B\`：粗体
-- \`Ctrl/Cmd + I\`：斜体
-- \`Ctrl/Cmd + K\`：链接
-
-## 开始使用
-
-开始编写你的 Markdown 文档吧！
+- 🤖 **AI 助手**：集成智能写作辅助
 `
 
+  // Create initial state
   const state = EditorState.create({
     doc: initialContent,
-    extensions: [
-      basicSetup,
-      markdown(),
-      dynamicTheme,
-      dynamicHighlighter,
-      headerPlugin,
-      editorEnhancementsTheme,
-      slashCommandExtension,
-      livePreviewExtension,
-      // Typewriter Mode Extensions (Always loaded, controlled by State)
-      typewriterState,
-      typewriterScrollPlugin,
-      
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged) {
-          batchUpdate(update.state.doc.toString())
-          updateStatusBar(update.state.doc, update.state.selection)
-
-          const content = update.state.doc.toString()
-          const headings = parseOutline(content)
-          renderOutline(headings)
-
-          const currentLine = update.state.doc.lineAt(update.state.selection.main.head).number
-          updateActiveHeading(headings, currentLine)
-        }
-      }),
-      keymap.of([
-        {
-          key: "Ctrl-s",
-          run: () => {
-            saveFileHandler()
-            return true
-          }
-        },
-        {
-          key: "Ctrl-o",
-          run: () => {
-            openFile().then(content => {
-              if (content && content.path && content.content !== undefined) {
-                currentFilePath = content.path
-                editor.dispatch({
-                  changes: {
-                    from: 0,
-                    to: editor.state.doc.length,
-                    insert: content.content
-                  }
-                })
-                updatePreview(content.content)
-                updateFilePathDisplay(content.path)
-              }
-            })
-            return true
-          }
-        },
-        {
-          key: "Ctrl-Shift-o",
-          run: () => {
-            openFolder()
-            return true
-          }
-        },
-        { key: "Ctrl-p", run: () => { togglePreviewMode(); return true } },
-        { key: "Ctrl-Shift-p", run: () => { showCommandPalette(); return true } },
-        { key: "Ctrl-Shift-k", run: () => { insertCodeBlock(); return true } },
-        { key: "Ctrl-Shift-m", run: () => { insertMathBlock(); return true } },
-        { key: "Ctrl-Shift-i", run: () => { insertImage(); return true } },
-        { key: "Ctrl-k", run: () => { insertLink(); return true } },
-        { key: "Ctrl-b", run: () => { toggleBold(); return true } },
-        { key: "Ctrl-i", run: () => { toggleItalic(); return true } },
-        { key: "Ctrl-Shift-q", run: () => { toggleQuote(); return true } },
-        ...searchKeymap
-      ])
-    ]
+    extensions: getEditorExtensions()
   })
 
   editor = new EditorView({
     state,
     parent: document.getElementById('editor')
   })
+  
+  // Initialize AI
+  initAIAssistant(editor)
 
-  updatePreview(initialContent)
-  updateStatusBar(editor.state.doc, editor.state.selection)
-  renderOutline(parseOutline(initialContent))
+  // Initialize Tab Manager
+  tabManager = new TabManager(editor, {
+    // Factory for creating new EditorState when opening a new tab
+    createNewState: (content) => {
+      return EditorState.create({
+        doc: content,
+        extensions: getEditorExtensions()
+      });
+    },
+    // Callback when tab switches
+    onTabSwitched: (tab) => {
+       updateFilePathDisplay(tab.path);
+       updatePreview(tab.content);
+       // Re-sync AI assistant editor reference if needed (View stays same, State changes)
+       // Since EditorView instance is persistent, AI assistant should be fine.
+       // Sync Typewriter/Focus mode? They persist on View, but extensions are in State.
+       // Since new State re-adds extensions, we might need to re-sync toggle buttons.
+       const typewriterBtn = document.getElementById('typewriterModeBtn');
+       if (typewriterBtn && typewriterBtn.classList.contains('active') !== typewriterEnabled) {
+          // Sync UI to internal state? Or reset internal state?
+          // Simplest: Reset or persist global toggle.
+          // Global toggle `typewriterEnabled` is true, but new state starts with default false.
+          // We should re-apply global settings.
+          if (typewriterEnabled) toggleTypewriter(editor, true);
+       }
+    }
+  });
+  
+  // Register the initial content as the first tab
+  tabManager.openTab({ path: null, content: initialContent, name: '欢迎.md' });
 
-  // Handlers setup handled globally now? 
-  // No, image manager needs editor instance
   setupPasteHandler(editor)
   setupDragDropHandler(editor)
+  setupSmartPaste(editor) // 智能粘贴
+  setupImagePaste(editor) // 截图粘贴
+  setupLinkPreview(editor) // 链接预览
   startAutoSave()
 }
+
+// ... UI Functions ...
 
 function togglePreviewMode() {
   isPreviewVisible = !isPreviewVisible
@@ -177,11 +204,7 @@ function togglePreviewMode() {
   const sideBySideButton = document.getElementById('sideBySideToggle')
 
   document.querySelectorAll('.toolbar-button').forEach(btn => btn.classList.remove('active'))
-
-  const setLabel = (btn, text) => {
-    const label = btn.querySelector('.label')
-    if (label) label.textContent = text
-  }
+  const setLabel = (btn, text) => { if(btn && btn.querySelector('.label')) btn.querySelector('.label').textContent = text }
 
   if (isPreviewVisible) {
     previewPane.classList.remove('hidden')
@@ -206,11 +229,7 @@ function toggleSideBySideMode() {
   const previewButton = document.getElementById('previewToggle')
 
   document.querySelectorAll('.toolbar-button').forEach(btn => btn.classList.remove('active'))
-
-  const setLabel = (btn, text) => {
-    const label = btn.querySelector('.label')
-    if (label) label.textContent = text
-  }
+  const setLabel = (btn, text) => { if(btn && btn.querySelector('.label')) btn.querySelector('.label').textContent = text }
 
   if (isSideBySide) {
     editorContainer.style.flexDirection = 'row'
@@ -219,10 +238,8 @@ function toggleSideBySideMode() {
     previewPane.classList.add('preview-pane')
     editorPane.style.flex = '1'
     previewPane.style.flex = '1'
-
     setLabel(button, '单屏')
     button.classList.add('active')
-
     isPreviewVisible = false
     setLabel(previewButton, '预览')
   } else {
@@ -236,45 +253,52 @@ function updateFilePathDisplay(path) {
   document.getElementById('filePath').textContent = path || '未命名.md'
 }
 
+// --- Modified Actions using TabManager ---
+
 function newFile() {
-  currentFilePath = null
-  if (editor) {
-    editor.dispatch({
-      changes: { from: 0, to: editor.state.doc.length, insert: '' }
-    })
-  }
-  updateFilePathDisplay('未命名.md')
-  updatePreview('')
+  if (tabManager) tabManager.newTab('md');
+}
+
+function newDrawing() {
+  if (tabManager) tabManager.newTab('draw');
 }
 
 function saveFileHandler() {
-  if (!editor) return;
-  const content = editor.state.doc.toString()
-  saveFile(currentFilePath, content).then(path => {
+  if (!editor || !tabManager) return;
+  const currentTab = tabManager.getCurrentTab();
+  const content = editor.state.doc.toString();
+  
+  saveFile(currentTab.path, content).then(path => {
     if (path) {
-      currentFilePath = path
-      updateFilePathDisplay(path)
-      showToast('文件保存成功')
+      tabManager.updateCurrentTab(path);
+      updateFilePathDisplay(path);
+      showToast('文件保存成功');
     }
   }).catch(err => {
-    console.error('保存失败:', err)
-    showToast('文件保存失败', 'error')
-  })
+    console.error('保存失败:', err);
+    showToast('文件保存失败', 'error');
+  });
 }
 
 function exportPDFHandler() {
-  if (!editor) return
+  if (!editor || !tabManager) return
+  const currentTab = tabManager.getCurrentTab();
   const content = editor.state.doc.toString()
-  const title = currentFilePath ? currentFilePath.split(/[/\\]/).pop().replace(/\.[^/.]+$/, '') : 'Document'
+  const title = currentTab.path ? currentTab.path.split(/[/\]/).pop().replace(/\.[^/.]+$/, '') : 'Document'
   showExportMenu(content, title)
 }
 
 function startAutoSave() {
   if (autoSaveInterval) clearInterval(autoSaveInterval)
   autoSaveInterval = setInterval(() => {
-    if (currentFilePath && editor) {
-      const content = editor.state.doc.toString()
-      saveFile(currentFilePath, content).catch(err => { })
+    if (tabManager) {
+        const tab = tabManager.getCurrentTab();
+        if (tab && tab.path && tab.isDirty) {
+             const content = editor.state.doc.toString();
+             saveFile(tab.path, content).then(() => {
+                 tabManager.setDirty(false); // Auto-save clears dirty
+             }).catch(err => { });
+        }
     }
   }, 30000)
 }
@@ -286,7 +310,7 @@ function stopAutoSave() {
   }
 }
 
-// 拖拽文件支持
+// 拖拽文件支持 (Revised for Tabs)
 function setupDragAndDrop() {
   const editorContainer = document.querySelector('.editor-container')
   editorContainer.addEventListener('dragover', (e) => {
@@ -301,22 +325,19 @@ function setupDragAndDrop() {
     e.preventDefault(); e.stopPropagation();
     editorContainer.style.border = 'none'
     const files = Array.from(e.dataTransfer.files)
-    const mdFile = files.find(file => file.name.endsWith('.md'))
-    if (mdFile) {
-      try {
-        // In browser mock, we might not get path or full content same way but file object has text()
-        const content = await mdFile.text()
-        // If in Tauri, we might need path.
-        // Assuming browser env for now or hybrid
-        currentFilePath = mdFile.path || null
-        editor.dispatch({
-          changes: { from: 0, to: editor.state.doc.length, insert: content }
-        })
-        updatePreview(content)
-        updateFilePathDisplay(mdFile.name)
-      } catch (error) {
-        showToast('读取文件失败: ' + error.message)
-      }
+    
+    // Open all dropped markdown files as tabs
+    for (const file of files) {
+        if (file.name.endsWith('.md')) {
+            try {
+                const content = await file.text();
+                // Pass path if available (electron/tauri), else null
+                const path = file.path || null;
+                tabManager.openTab({ path, content, name: file.name });
+            } catch (error) {
+                showToast('读取文件失败: ' + error.message);
+            }
+        }
     }
   })
 }
@@ -328,23 +349,18 @@ window.addEventListener('DOMContentLoaded', () => {
   // Expose globals
   window.editor = editor
   window.newFile = newFile
+  window.newDrawing = newDrawing
   window.saveFile = saveFileHandler
-  window.openFile = () => { // Wrap to handle async properly if needed or just alias
+  
+  // Revised Open File (Using Tabs)
+  window.openFile = () => {
     openFile().then(content => {
       if (content && content.path && content.content !== undefined) {
-        currentFilePath = content.path
-        editor.dispatch({
-          changes: {
-            from: 0,
-            to: editor.state.doc.length,
-            insert: content.content
-          }
-        })
-        updatePreview(content.content)
-        updateFilePathDisplay(content.path)
+        tabManager.openTab(content);
       }
     })
   }
+  
   window.refreshFileTree = refreshFileTree
   window.togglePreview = togglePreviewMode
   window.toggleSideBySide = toggleSideBySideMode
@@ -353,6 +369,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.openFolder = openFolder
   window.toggleOutline = toggleOutline
   window.toggleSourceMode = toggleSourceMode
+  window.showAIAssistant = showAIAssistant
 
   window.toggleTypewriterMode = () => {
     if (!editor) return;
@@ -365,18 +382,14 @@ window.addEventListener('DOMContentLoaded', () => {
   window.toggleFocusMode = () => {
     if (!editor) return;
     focusModeEnabled = !focusModeEnabled;
-    
-    // Use CSS class for toggling focus mode style
     if (focusModeEnabled) {
       editor.dom.classList.add('focus-mode');
     } else {
       editor.dom.classList.remove('focus-mode');
     }
-    
     const btn = document.getElementById('focusModeBtn');
     if (btn) btn.classList.toggle('active', focusModeEnabled);
   };
-
 
   // Insert Actions
   window.insertCodeBlock = insertCodeBlock
@@ -394,16 +407,215 @@ window.addEventListener('DOMContentLoaded', () => {
     sidebar.classList.toggle('collapsed')
   }
 
-  // Event Listeners
+  // 新增功能暴露到全局
+  window.showRecentFiles = showRecentFilesPanel
+  window.showEmojiPicker = () => showEmojiPicker(editor)
+  window.showTemplates = () => {
+    showTemplateSelector((content) => {
+      if (tabManager) {
+        tabManager.newTab('md')
+        // 设置内容
+        setTimeout(() => {
+          if (editor && content) {
+            editor.dispatch({
+              changes: { from: 0, to: editor.state.doc.length, insert: content }
+            })
+          }
+        }, 50)
+      }
+    })
+  }
+  window.showShortcuts = showShortcutsPanel
+  window.showStats = () => {
+    if (editor) {
+      showStatsPanel(editor.state.doc.toString())
+    }
+  }
+  
+  // 搜索和书签
+  window.showSearch = () => showGlobalSearch(editor)
+  window.showGoToLine = () => showGoToLine(editor)
+  window.showBookmarks = () => showBookmarksPanel(editor)
+  window.toggleBookmark = () => toggleBookmark(editor)
+  
+  // 新增模式
+  window.toggleReadingMode = () => toggleReadingMode(editor)
+  window.toggleZenMode = () => toggleZenMode(editor)
+  window.showPomodoro = showPomodoro
+  window.showClipboardHistory = () => showClipboardHistory(editor)
+  
+  // 新增工具
+  window.showWritingGoal = showWritingGoal
+  window.formatDocument = () => applyFormat(editor)
+  window.formatSelection = () => formatSelection(editor)
+  window.toggleLineNumbers = toggleLineNumbers
+  window.showTOCGenerator = () => showTOCGenerator(editor)
+  window.printDocument = printDocument
+  
+  // 行操作
+  window.duplicateLine = () => duplicateLine(editor)
+  window.deleteLine = () => deleteLine(editor)
+  window.moveLineUp = () => moveLineUp(editor)
+  window.moveLineDown = () => moveLineDown(editor)
+  window.selectLine = () => selectLine(editor)
+  
+  // 文本转换和代码片段
+  window.showTransformMenu = () => showTransformMenu(editor)
+  window.showSnippets = () => showSnippetsPanel(editor)
+  
+  // 通过路径打开文件 (供最近文件使用)
+  window.openFileByPath = async (filePath) => {
+    try {
+      const { readTextFile } = await import('@tauri-apps/api/fs')
+      const content = await readTextFile(filePath)
+      const name = filePath.split(/[/\\]/).pop()
+      tabManager.openTab({ path: filePath, content, name })
+      addRecentFile(filePath, name)
+    } catch (err) {
+      showToast('打开文件失败: ' + err.message, 'error')
+    }
+  }
+
+  // 全局快捷键
   document.addEventListener('keydown', (e) => {
+    // Ctrl+Shift+P - 命令面板
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
       e.preventDefault();
       showCommandPalette();
+    }
+    // Ctrl+. - Emoji 选择器
+    if ((e.ctrlKey || e.metaKey) && e.key === '.') {
+      e.preventDefault();
+      showEmojiPicker(editor);
+    }
+    // Ctrl+Shift+R - 最近文件
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'r') {
+      e.preventDefault();
+      showRecentFilesPanel();
+    }
+    // F1 - 快捷键帮助
+    if (e.key === 'F1') {
+      e.preventDefault();
+      showShortcutsPanel();
+    }
+    // Ctrl+N - 新建文件 (带模板选择)
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n' && !e.shiftKey) {
+      e.preventDefault();
+      window.showTemplates();
+    }
+    // Ctrl+F - 搜索
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && !e.shiftKey) {
+      e.preventDefault();
+      showGlobalSearch(editor);
+    }
+    // Ctrl+G - 跳转到行
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+      e.preventDefault();
+      showGoToLine(editor);
+    }
+    // Ctrl+M - 切换书签
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'm' && !e.shiftKey) {
+      e.preventDefault();
+      toggleBookmark(editor);
+    }
+    // Ctrl+Shift+M - 书签面板
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+      e.preventDefault();
+      showBookmarksPanel(editor);
+    }
+    // F2 - 下一个书签
+    if (e.key === 'F2' && !e.shiftKey) {
+      e.preventDefault();
+      nextBookmark(editor);
+    }
+    // Shift+F2 - 上一个书签
+    if (e.key === 'F2' && e.shiftKey) {
+      e.preventDefault();
+      prevBookmark(editor);
+    }
+    // Ctrl+Alt+R - 阅读模式
+    if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'r') {
+      e.preventDefault();
+      toggleReadingMode(editor);
+    }
+    // Ctrl+Alt+Z - 禅模式
+    if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      toggleZenMode(editor);
+    }
+    // Ctrl+Shift+V - 剪贴板历史
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'v') {
+      e.preventDefault();
+      showClipboardHistory(editor);
+    }
+    // Ctrl+Shift+D - 复制当前行
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      duplicateLine(editor);
+    }
+    // Ctrl+Shift+K - 删除当前行
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      deleteLine(editor);
+    }
+    // Alt+Up - 向上移动行
+    if (e.altKey && e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveLineUp(editor);
+    }
+    // Alt+Down - 向下移动行
+    if (e.altKey && e.key === 'ArrowDown') {
+      e.preventDefault();
+      moveLineDown(editor);
+    }
+    // Ctrl+L - 选择当前行
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') {
+      e.preventDefault();
+      selectLine(editor);
+    }
+    // Ctrl+T - 文本转换菜单
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 't' && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      showTransformMenu(editor);
+    }
+    // Ctrl+Shift+S - 代码片段 (注意：不覆盖 Ctrl+S 保存)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      showSnippetsPanel(editor);
+    }
+    // Ctrl+P (无Shift) - 打印
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p' && !e.shiftKey) {
+      // 不阻止默认行为，让浏览器打印
     }
   });
 
   createOutlineContainer()
   initTheme()
   initTableEditor()
-  setupDragAndDrop() // Use the local function
+  initGitPanel()
+  setupClipboardListener() // 剪贴板历史监听
+  initWritingGoal() // 写作目标初始化
+  initPrintStyles() // 打印样式
+  
+  // 自动恢复检查
+  setTimeout(() => {
+    checkRecovery((content) => {
+      if (tabManager && content) {
+        tabManager.newTab('md')
+        setTimeout(() => {
+          if (editor) {
+            editor.dispatch({
+              changes: { from: 0, to: editor.state.doc.length, insert: content }
+            })
+          }
+        }, 50)
+      }
+    })
+  }, 1000)
+  
+  // 启动自动恢复保存
+  startAutoRecover(() => editor ? editor.state.doc.toString() : null)
+  
+  // 保存成功后清除恢复数据
+  window.addEventListener('file-saved', () => clearRecoveryData())
 })

@@ -134,17 +134,49 @@ export function openFile() {
 // 保存文件
 export async function saveFile(filePath, content) {
   if (!isTauri) {
-    // Browser Mock
-    const savePath = filePath || prompt("Enter filename to save:", "new_file.md");
-    if (savePath) {
-      browserFS.set(savePath, content);
-      showToast('已保存 (Browser Storage)');
-      // Update status bar mock
-      const statusBar = document.querySelector('.status-bar .status-item:last-child');
-      if (statusBar) statusBar.innerHTML = `<span>已保存 (Local)</span>`;
-      return savePath;
+    // Browser: 使用 File System Access API 或 下载方式保存
+    try {
+      // 尝试使用现代 File System Access API (Chrome/Edge 支持)
+      if ('showSaveFilePicker' in window) {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filePath || 'untitled.md',
+          types: [{
+            description: 'Markdown Files',
+            accept: { 'text/markdown': ['.md'] }
+          }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        showToast('文件已保存到本地');
+        return handle.name;
+      } else {
+        // 降级方案：使用下载方式
+        const fileName = filePath || prompt("输入文件名:", "untitled.md");
+        if (!fileName) return null;
+        
+        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName.endsWith('.md') ? fileName : fileName + '.md';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToast('文件已下载');
+        return fileName;
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        // 用户取消
+        return null;
+      }
+      console.error('保存失败:', err);
+      showToast('保存失败: ' + err.message, 'error');
+      return null;
     }
-    return null;
   }
 
   try {

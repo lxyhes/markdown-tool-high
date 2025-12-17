@@ -87,7 +87,36 @@ export function showCommandPalette() {
         { id: 'theme-dark', name: '主题: 暗黑 (Theme: Dark)', icon: '🌑', action: () => applyTheme('dark') },
         { id: 'theme-light', name: '主题: 明亮 (Theme: Light)', icon: '☀️', action: () => applyTheme('light') },
         { id: 'outline', name: '显示/隐藏大纲 (Toggle Outline)', icon: '📑', action: () => toggleOutline() },
-        { id: 'mindmap', name: '查看思维导图 (View Mindmap)', icon: '🧠', action: () => showMindmap() }
+        { id: 'mindmap', name: '查看思维导图 (View Mindmap)', icon: '🧠', action: () => showMindmap() },
+        
+        // 新增功能
+        { id: 'recent', name: '最近文件 (Recent Files)', icon: '🕐', action: () => window.showRecentFiles && window.showRecentFiles() },
+        { id: 'emoji', name: '插入表情 (Insert Emoji)', icon: '😀', action: () => window.showEmojiPicker && window.showEmojiPicker() },
+        { id: 'template', name: '从模板新建 (New from Template)', icon: '📋', action: () => window.showTemplates && window.showTemplates() },
+        { id: 'shortcuts', name: '快捷键帮助 (Keyboard Shortcuts)', icon: '⌨️', action: () => window.showShortcuts && window.showShortcuts() },
+        { id: 'stats', name: '文档统计 (Document Stats)', icon: '📊', action: () => window.showStats && window.showStats() },
+        { id: 'new-file', name: '新建文件 (New File)', icon: '📄', action: () => window.newFile && window.newFile() },
+        { id: 'new-draw', name: '新建绘图 (New Drawing)', icon: '📐', action: () => window.newDrawing && window.newDrawing() },
+        { id: 'ai', name: 'AI 助手 (AI Assistant)', icon: '🤖', action: () => window.showAIAssistant && window.showAIAssistant() },
+        { id: 'search', name: '搜索和替换 (Find & Replace)', icon: '🔍', action: () => window.showSearch && window.showSearch() },
+        { id: 'goto', name: '跳转到行 (Go to Line)', icon: '↗️', action: () => window.showGoToLine && window.showGoToLine() },
+        { id: 'bookmarks', name: '书签列表 (Bookmarks)', icon: '🔖', action: () => window.showBookmarks && window.showBookmarks() },
+        { id: 'toggle-bookmark', name: '切换书签 (Toggle Bookmark)', icon: '📍', action: () => window.toggleBookmark && window.toggleBookmark() },
+        { id: 'reading-mode', name: '阅读模式 (Reading Mode)', icon: '📖', action: () => window.toggleReadingMode && window.toggleReadingMode() },
+        { id: 'zen-mode', name: '禅模式 (Zen Mode)', icon: '🧘', action: () => window.toggleZenMode && window.toggleZenMode() },
+        { id: 'pomodoro', name: '番茄钟 (Pomodoro)', icon: '🍅', action: () => window.showPomodoro && window.showPomodoro() },
+        { id: 'clipboard', name: '剪贴板历史 (Clipboard History)', icon: '📋', action: () => window.showClipboardHistory && window.showClipboardHistory() },
+        { id: 'writing-goal', name: '写作目标 (Writing Goal)', icon: '🎯', action: () => window.showWritingGoal && window.showWritingGoal() },
+        { id: 'format', name: '格式化文档 (Format Document)', icon: '✨', action: () => window.formatDocument && window.formatDocument() },
+        { id: 'line-numbers', name: '切换行号 (Toggle Line Numbers)', icon: '🔢', action: () => window.toggleLineNumbers && window.toggleLineNumbers() },
+        { id: 'toc', name: '生成目录 (Generate TOC)', icon: '📑', action: () => window.showTOCGenerator && window.showTOCGenerator() },
+        { id: 'print', name: '打印文档 (Print)', icon: '🖨️', action: () => window.printDocument && window.printDocument() },
+        { id: 'duplicate-line', name: '复制当前行 (Duplicate Line)', icon: '📋', action: () => window.duplicateLine && window.duplicateLine() },
+        { id: 'delete-line', name: '删除当前行 (Delete Line)', icon: '🗑️', action: () => window.deleteLine && window.deleteLine() },
+        { id: 'move-line-up', name: '向上移动行 (Move Line Up)', icon: '⬆️', action: () => window.moveLineUp && window.moveLineUp() },
+        { id: 'move-line-down', name: '向下移动行 (Move Line Down)', icon: '⬇️', action: () => window.moveLineDown && window.moveLineDown() },
+        { id: 'transform', name: '文本转换 (Text Transform)', icon: '🔄', action: () => window.showTransformMenu && window.showTransformMenu() },
+        { id: 'snippets', name: '代码片段 (Snippets)', icon: '📦', action: () => window.showSnippets && window.showSnippets() },
     ]
 
     let selectedIndex = 0;

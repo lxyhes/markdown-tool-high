@@ -32,6 +32,26 @@ const commands = [
     // Utility
     { label: "Date", type: "text", apply: () => new Date().toLocaleDateString(), detail: "当前日期" },
     { label: "Time", type: "text", apply: () => new Date().toLocaleTimeString(), detail: "当前时间" },
+    { label: "DateTime", type: "text", apply: () => new Date().toLocaleString(), detail: "当前日期时间" },
+    
+    // New Features
+    { label: "Emoji", type: "text", apply: (view) => { if (window.showEmojiPicker) window.showEmojiPicker() }, detail: "插入表情", boost: 70 },
+    { label: "Template", type: "text", apply: (view) => { if (window.showTemplates) window.showTemplates() }, detail: "从模板新建", boost: 69 },
+    
+    // Callouts / Admonitions
+    { label: "Note", type: "text", apply: "> [!NOTE]\n> ", detail: "提示框 - 注意", boost: 65 },
+    { label: "Tip", type: "text", apply: "> [!TIP]\n> ", detail: "提示框 - 技巧", boost: 64 },
+    { label: "Warning", type: "text", apply: "> [!WARNING]\n> ", detail: "提示框 - 警告", boost: 63 },
+    { label: "Important", type: "text", apply: "> [!IMPORTANT]\n> ", detail: "提示框 - 重要", boost: 62 },
+    
+    // More blocks
+    { label: "Footnote", type: "text", apply: "[^1]: ", detail: "脚注", boost: 60 },
+    { label: "Checkbox", type: "text", apply: "- [ ] ", detail: "复选框", boost: 59 },
+    { label: "Mermaid", type: "text", apply: "```mermaid\ngraph TD\n    A[开始] --> B[结束]\n```", detail: "Mermaid 图表", boost: 58 },
+    
+    // Tools
+    { label: "TOC", type: "text", apply: (view) => { if (window.showTOCGenerator) window.showTOCGenerator() }, detail: "生成目录", boost: 55 },
+    { label: "Format", type: "text", apply: (view) => { if (window.formatDocument) window.formatDocument() }, detail: "格式化文档", boost: 54 },
 ]
 
 function slashCommandCompletion(context) {
